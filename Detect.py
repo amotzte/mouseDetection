@@ -1,6 +1,10 @@
 import numpy as np
 import cv2
 
+COLOR_RED = (0, 0, 255)
+COLOR_ORANGE = (51, 153, 255)
+COLOR_GREEN = (0, 255, 0)
+
 MOVEMENT_THRESHOLD = 10
 
 cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\vlc-record.mp4.mp4')
@@ -9,21 +13,16 @@ print cap.isOpened()
 params = cv2.SimpleBlobDetector_Params()
 params.minThreshold = 20
 params.blobColor = 0
-
 params.maxArea=4000
 params.minArea=1000
 params.minThreshold = 0
 params.maxThreshold = 30
 params.minRepeatability=2
-
 params.filterByConvexity = True
 params.maxConvexity = 3
 params.minConvexity = 0.6
-filterByCircularity =  True
 
-minCircularity = 0.800000011921
 
-#params.filterByInertia = True
 """
 blobColor = {int} 0
 filterByArea = {bool} True
@@ -88,16 +87,13 @@ class Direction:
 
 
 print params
-#params.maxThreshold = 100
 detector = cv2.SimpleBlobDetector_create(params)
 prev_frame = cap.read()
 last_center_point = (0, 0)
-cap.set(cv2.CAP_PROP_POS_MSEC,190000 )
+#cap.set(cv2.CAP_PROP_POS_MSEC,190000 )
 print cap.get(cv2.CAP_PROP_POS_MSEC)
 
-#print angle_between((0,5),(95,0))
 general_direction = Direction(7)
-#imidiate_direction = Direction(7)
 while(cap.isOpened()):
     ret ,frame = cap.read()
     frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
@@ -105,14 +101,14 @@ while(cap.isOpened()):
     if ret:
         keypoints = detector.detect(frame)
 
-        im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (0, 0, 255),
+        im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), COLOR_RED,
                                               cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         #cv2.circle(im_with_keypoints, (int(keypoints[0].pt[0]), int(keypoints[0].pt[1])), 3, (0, 255, 0))
         #if (im_with_keypoints.)
-        cv2.putText(im_with_keypoints, str(cap.get(cv2.CAP_PROP_POS_MSEC)), (100, 100), 0, 1, (0, 0, 255))
+        cv2.putText(im_with_keypoints, str(cap.get(cv2.CAP_PROP_POS_MSEC)), (0, 50), 0, 1, COLOR_RED)
         if (len(keypoints)) == 1 :
             center_point = tuple([int(i) for i in keypoints[0].pt])
-            cv2.circle(im_with_keypoints, center_point, 3, (0, 255, 0))
+            cv2.circle(im_with_keypoints, center_point, 3, COLOR_GREEN)
 
 
 
@@ -130,10 +126,10 @@ while(cap.isOpened()):
             vector_end_point = tuple(np.add(center_point, v1))
 
             if np.linalg.norm(v1) > MOVEMENT_THRESHOLD:
-                cv2.arrowedLine(im_with_keypoints, center_point, vector_end_point, (0, 255, 0))
+                cv2.arrowedLine(im_with_keypoints, center_point, vector_end_point, COLOR_GREEN)
                 print "v1 {}".format(np.linalg.norm(v1))
             if np.linalg.norm(super) > MOVEMENT_THRESHOLD:
-                cv2.arrowedLine(im_with_keypoints, center_point, super_end_point, (51, 153, 255), 2)
+                cv2.arrowedLine(im_with_keypoints, center_point, super_end_point, COLOR_ORANGE, 2)
                 print "super pos {}".format(np.linalg.norm(super))
 
             last_center_point = center_point
