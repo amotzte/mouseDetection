@@ -1,13 +1,19 @@
 import numpy as np
 import cv2
 
+import matplotlib.pyplot as plt
+import time
+
 COLOR_RED = (0, 0, 255)
 COLOR_ORANGE = (51, 153, 255)
 COLOR_GREEN = (0, 255, 0)
 
 MOVEMENT_THRESHOLD = 10
 
-cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\vlc-record.mp4.mp4')
+#cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg')
+filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\4DMS_no_cocaine.mpg"
+cap = cv2.VideoCapture(filePath)
+
 print cap.isOpened()
 
 params = cv2.SimpleBlobDetector_Params()
@@ -47,7 +53,6 @@ thresholdStep = {float} 10.0
 """
 
 
-
 def unit_vector(vector):
     """ Returns the unit vector of the vector.
     @type vector: tuple
@@ -67,11 +72,19 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 
-class Direction:
+class MouseData:
 
-    history = []
+
 
     def __init__(self,history_size):
+        self.history = []
+
+        self.movement_sum = 0
+        self.angle_sum = 0
+        self.avg_angle = 0
+        self.currentTime = 0
+        self.data = {'x': [], 'y': []}
+
         for i in range(history_size):
             self.history.append((0, 0))
 
@@ -80,46 +93,56 @@ class Direction:
         self.history.insert(0, point)
 
     def get_super_avg(self):
-        super_post = (0, 0)
+        super_post_arr = (0, 0)
         for v in self.history:
-            super_post = tuple(np.add(super_post, v))
-        return tuple(np.divide(super_post, len(self.history)))
+            super_post_arr = np.add(super_post_arr, v)
+        return tuple(super_post_arr/len(self.history))
+
 
 
 print params
 detector = cv2.SimpleBlobDetector_create(params)
 prev_frame = cap.read()
-last_center_point = (0, 0)
-#cap.set(cv2.CAP_PROP_POS_MSEC,190000 )
+last_center_point = None
 print cap.get(cv2.CAP_PROP_POS_MSEC)
 
-general_direction = Direction(7)
-while(cap.isOpened()):
+mouse = []
+LASER = 1
+NORMAL = 1
+mouse_data_normal = MouseData(5)
+mouse_data_laser = MouseData(5)
+
+currentMouse = mouse_data_normal
+
+
+
+while cap.isOpened():
     ret ,frame = cap.read()
-    frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+
 
     if ret:
+        frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         keypoints = detector.detect(frame)
 
         im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), COLOR_RED,
                                               cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        #cv2.circle(im_with_keypoints, (int(keypoints[0].pt[0]), int(keypoints[0].pt[1])), 3, (0, 255, 0))
-        #if (im_with_keypoints.)
-        cv2.putText(im_with_keypoints, str(cap.get(cv2.CAP_PROP_POS_MSEC)), (0, 50), 0, 1, COLOR_RED)
+
+
         if (len(keypoints)) == 1 :
             center_point = tuple([int(i) for i in keypoints[0].pt])
             cv2.circle(im_with_keypoints, center_point, 3, COLOR_GREEN)
 
-
+            if last_center_point is None:
+                last_center_point = center_point
 
             # find vector direction
-            v1 = tuple(np.subtract(center_point, last_center_point))
+            v1 = np.subtract(center_point, last_center_point)
 
             # "Normalize" vector (mostly for drawing purposes )
-            v1 = tuple(np.multiply(v1, 5))
+            v1 = tuple(v1*5)
 
-            general_direction.update_history(v1)
-            super = general_direction.get_super_avg()
+            mouse_data_normal.update_history(v1)
+            super = mouse_data_normal.get_super_avg()
 
             super_end_point = tuple(np.add(center_point, super))
 
@@ -127,35 +150,55 @@ while(cap.isOpened()):
 
             if np.linalg.norm(v1) > MOVEMENT_THRESHOLD:
                 cv2.arrowedLine(im_with_keypoints, center_point, vector_end_point, COLOR_GREEN)
-                print "v1 {}".format(np.linalg.norm(v1))
             if np.linalg.norm(super) > MOVEMENT_THRESHOLD:
                 cv2.arrowedLine(im_with_keypoints, center_point, super_end_point, COLOR_ORANGE, 2)
-                print "super pos {}".format(np.linalg.norm(super))
 
             last_center_point = center_point
             res = angle_between(v1, super)
-            if not np.isnan(res) and np.linalg.norm(v1) > MOVEMENT_THRESHOLD and np.linalg.norm(super) > MOVEMENT_THRESHOLD:
-                print "angle_between(v1,super) {}".format(angle_between(v1,super))
 
 
-            #if (np.linalg.norm(delta)):
+            if not np.isnan(res) and (np.linalg.norm(v1) > MOVEMENT_THRESHOLD and np.linalg.norm(super) > MOVEMENT_THRESHOLD):
+                #print "angle_between(v1,super) {}".format(angle_between(v1,super))
+                currentMouse.movement_sum += np.linalg.norm(v1)
+                currentMouse.angle_sum += angle_between(v1,super)
+                currentMouse.avg_angle = currentMouse.angle_sum/currentMouse.movement_sum
+                currentMouse.data['x'].append(currentMouse.movement_sum)
+                currentMouse.data['y'].append(currentMouse.avg_angle * 1000)
 
+        currentTime = cap.get(cv2.CAP_PROP_POS_MSEC)
+        cv2.putText(im_with_keypoints, "avg angle {}".format(currentMouse.avg_angle*1000), (0, 70), 0, .5, COLOR_RED)
+        cv2.putText(im_with_keypoints, "movement sum {}".format(currentMouse.movement_sum), (0, 100), 0, .5, COLOR_RED)
+        cv2.putText(im_with_keypoints, "Time " + str(currentTime), (0, 20), 0, .5, COLOR_RED)
 
+        if (currentTime // (3 * 60 * 1000)) % 2 == 1:
+            currentMouse = mouse_data_laser
+        else:
+            currentMouse = mouse_data_normal
 
-        #cv2.namedWindow("", cv2.WINDOW_NORMAL)
 
         cv2.imshow("Keypoints", im_with_keypoints)
-        # k = cv2.waitKey(1) & 0xFF == ord('q') & 0xFF == ord('s')
-        if cv2.waitKey(50) & 0xFF == ord('q'):
-            break
-        # if (k == 's'):
-        #     cap.set(cv2.CAP_PROP_POS_MSEC, cap.get(cv2.CAP_PROP_POS_MSEC)+20000)
-        # elif k == 'k':
-        #     break
 
+        k = cv2.waitKey(1)
+        if k != -1 :
+            print k
+            if k == 113:
+                break
+            elif k == 112:
+                plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
+                         mouse_data_laser.data['y'])
+                plt.ylabel('some numbers')
+                plt.show()
 
     else:
         break
+
+print "file name= {}".format(filePath)
+print "Finish total distance={} avg angle={} endTime={}".format(currentMouse.movement_sum, currentMouse.avg_angle * 1000, currentMouse.currentTime)
+
+
+plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],  mouse_data_laser.data['y'])
+plt.ylabel('some numbers')
+plt.show()
 
 cv2.destroyAllWindows()
 cap.release()
