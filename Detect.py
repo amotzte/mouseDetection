@@ -2,7 +2,8 @@ import numpy as np
 import cv2
 
 import matplotlib.pyplot as plt
-import time
+
+LASER_INTEVAL_MINUTES = 3
 
 COLOR_RED = (0, 0, 255)
 COLOR_ORANGE = (51, 153, 255)
@@ -115,6 +116,13 @@ mouse_data_laser = MouseData(5)
 currentMouse = mouse_data_normal
 
 
+def paint_graph():
+    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
+             mouse_data_laser.data['y'])
+    plt.ylabel("Tremor average")
+    plt.xlabel("Total distance")
+    plt.show()
+
 
 while cap.isOpened():
     ret ,frame = cap.read()
@@ -127,8 +135,7 @@ while cap.isOpened():
         im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), COLOR_RED,
                                               cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-
-        if (len(keypoints)) == 1 :
+        if len(keypoints) == 1 :
             center_point = tuple([int(i) for i in keypoints[0].pt])
             cv2.circle(im_with_keypoints, center_point, 3, COLOR_GREEN)
 
@@ -170,9 +177,13 @@ while cap.isOpened():
         cv2.putText(im_with_keypoints, "movement sum {}".format(currentMouse.movement_sum), (0, 100), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "Time " + str(currentTime), (0, 20), 0, .5, COLOR_RED)
 
-        if (currentTime // (3 * 60 * 1000)) % 2 == 1:
+        if (currentTime // (LASER_INTEVAL_MINUTES * 60 * 1000)) % 2 == 1:
+            if currentMouse == mouse_data_normal :
+                print "Context switch changing from mouse_data_normal to mouse_data_laser "
             currentMouse = mouse_data_laser
         else:
+            if currentMouse == mouse_data_laser:
+                print "Context switch changing from to mouse_data_laser mouse_data_normal"
             currentMouse = mouse_data_normal
 
 
@@ -184,10 +195,7 @@ while cap.isOpened():
             if k == 113:
                 break
             elif k == 112:
-                plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
-                         mouse_data_laser.data['y'])
-                plt.ylabel('some numbers')
-                plt.show()
+                paint_graph()
 
     else:
         break
@@ -196,9 +204,7 @@ print "file name= {}".format(filePath)
 print "Finish total distance={} avg angle={} endTime={}".format(currentMouse.movement_sum, currentMouse.avg_angle * 1000, currentMouse.currentTime)
 
 
-plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],  mouse_data_laser.data['y'])
-plt.ylabel('some numbers')
-plt.show()
+paint_graph()
 
 cv2.destroyAllWindows()
 cap.release()
