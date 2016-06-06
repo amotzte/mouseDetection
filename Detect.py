@@ -12,7 +12,7 @@ COLOR_GREEN = (0, 255, 0)
 MOVEMENT_THRESHOLD = 10
 
 #cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg')
-filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\4DMS_no_cocaine.mpg"
+filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg"
 cap = cv2.VideoCapture(filePath)
 
 print cap.isOpened()
@@ -148,8 +148,8 @@ while cap.isOpened():
             # "Normalize" vector (mostly for drawing purposes )
             v1 = tuple(v1*5)
 
-            mouse_data_normal.update_history(v1)
-            super = mouse_data_normal.get_super_avg()
+            currentMouse.update_history(v1)
+            super = currentMouse.get_super_avg()
 
             super_end_point = tuple(np.add(center_point, super))
 
@@ -167,6 +167,8 @@ while cap.isOpened():
             if not np.isnan(res) and (np.linalg.norm(v1) > MOVEMENT_THRESHOLD and np.linalg.norm(super) > MOVEMENT_THRESHOLD):
                 #print "angle_between(v1,super) {}".format(angle_between(v1,super))
                 currentMouse.movement_sum += np.linalg.norm(v1)
+                if angle_between(v1,super) < 0:
+                    print angle_between(v1,super)
                 currentMouse.angle_sum += angle_between(v1,super)
                 currentMouse.avg_angle = currentMouse.angle_sum/currentMouse.movement_sum
                 currentMouse.data['x'].append(currentMouse.movement_sum)
