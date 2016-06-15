@@ -1,22 +1,30 @@
 import numpy as np
 import cv2
-
+import os
 import matplotlib.pyplot as plt
+import math
 
+GENERAL_MOVEMENT_HISTORY = 5
 LASER_INTEVAL_MINUTES = 3
+NUM_OF_CYCLES = 3
+SHORT_MOVEMENT_THRESHOLD = 2
+GENERAL_MOVEMENT_THRESHOLD = 2
+ARROWS_SIZE_FACTOR = 5 #For drawing purposes
 
 COLOR_RED = (0, 0, 255)
 COLOR_ORANGE = (51, 153, 255)
 COLOR_GREEN = (0, 255, 0)
 
-MOVEMENT_THRESHOLD = 10
+
 
 #cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg')
-filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg"
+#filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\vlc-record-2016-05-29-11h07m23s-3DMS NO COCAINE.mpg-.mp4"
+filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\4DMS_no_cocaine.mpg"
 cap = cv2.VideoCapture(filePath)
 
 print cap.isOpened()
 
+# Detection parameters
 params = cv2.SimpleBlobDetector_Params()
 params.minThreshold = 20
 params.blobColor = 0
@@ -70,21 +78,19 @@ def angle_between(v1, v2):
     """
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    rad = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    return math.degrees(rad)
 
 
 class MouseData:
-
-
-
     def __init__(self,history_size):
         self.history = []
 
         self.movement_sum = 0
         self.angle_sum = 0
         self.avg_angle = 0
-        self.currentTime = 0
-        self.data = {'x': [], 'y': []}
+        self.data = {'x': [],
+                     'y': []}
 
         for i in range(history_size):
             self.history.append((0, 0))
@@ -94,10 +100,10 @@ class MouseData:
         self.history.insert(0, point)
 
     def get_super_avg(self):
-        super_post_arr = (0, 0)
-        for v in self.history:
-            super_post_arr = np.add(super_post_arr, v)
-        return tuple(super_post_arr/len(self.history))
+     super_post_arr = (0, 0)
+     for v in self.history:
+         super_post_arr = np.add(super_post_arr, v)
+     return super_post_arr/len(self.history)
 
 
 
@@ -110,23 +116,55 @@ print cap.get(cv2.CAP_PROP_POS_MSEC)
 mouse = []
 LASER = 1
 NORMAL = 1
-mouse_data_normal = MouseData(5)
-mouse_data_laser = MouseData(5)
-
+mouse_data_normal = MouseData(GENERAL_MOVEMENT_HISTORY)
+mouse_data_laser = MouseData(GENERAL_MOVEMENT_HISTORY)
 currentMouse = mouse_data_normal
-
+remain_context_switch = NUM_OF_CYCLES * 2
 
 def paint_graph():
+    fig = plt.figure("Movement graph")
+    fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
     plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
              mouse_data_laser.data['y'])
-    plt.ylabel("Tremor average")
-    plt.xlabel("Total distance")
+    plt.ylabel("Degree")
+    plt.xlabel("Time")
+
+
+    fig = plt.figure("All graphs")
+    fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
+
+    plt.subplot(221)
+    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'],'b', mouse_data_laser.data['x'],
+             mouse_data_laser.data['y'],'g')
+    plt.ylabel("Degree")
+    plt.xlabel("Time")
+
+
+    plt.subplot(222)
+    plt.title('Normalize histogram')
+    plt.xlabel("Degree")
+    plt.ylabel("Occurences")
+
+    plt.hist((mouse_data_normal.data['y'],mouse_data_laser.data['y'] if mouse_data_laser.data['y'] != [] else [0]),bins=3,normed=True)
+
+    plt.subplot(223)
+    plt.title('Histogram')
+    plt.hist((mouse_data_normal.data['y'], mouse_data_laser.data['y'] if mouse_data_laser.data['y'] != [] else [0]),bins=3, normed=False)
+    plt.xlabel("Degree")
+    plt.ylabel("Occurences")
+    #if mouse_data_laser.data['y'] != []:
+    #    plt.hist(mouse_data_laser.data['y'],color='green')
+
+
     plt.show()
+#print angle_between((math.cos(math.radians(45)), math.sin(math.radians(45))),(1,0))
+#print angle_between((math.cos(math.radians(45)), -math.sin(math.radians(45))),(1,0))
+
+#exit(1)
 
 
-while cap.isOpened():
-    ret ,frame = cap.read()
-
+while cap.isOpened() and remain_context_switch > 0:
+    ret, frame = cap.read()
 
     if ret:
         frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
@@ -134,6 +172,7 @@ while cap.isOpened():
 
         im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), COLOR_RED,
                                               cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        currentTime = cap.get(cv2.CAP_PROP_POS_MSEC)
 
         if len(keypoints) == 1 :
             center_point = tuple([int(i) for i in keypoints[0].pt])
@@ -146,35 +185,37 @@ while cap.isOpened():
             v1 = np.subtract(center_point, last_center_point)
 
             # "Normalize" vector (mostly for drawing purposes )
-            v1 = tuple(v1*5)
+            #v1 = tuple(v1*5)
 
             currentMouse.update_history(v1)
             super = currentMouse.get_super_avg()
 
-            super_end_point = tuple(np.add(center_point, super))
+            super_end_point = tuple(np.add(center_point, super*ARROWS_SIZE_FACTOR))
 
-            vector_end_point = tuple(np.add(center_point, v1))
+            vector_end_point = tuple(np.add(center_point, tuple(v1*ARROWS_SIZE_FACTOR)))
 
-            if np.linalg.norm(v1) > MOVEMENT_THRESHOLD:
+            if np.linalg.norm(v1) > SHORT_MOVEMENT_THRESHOLD:
                 cv2.arrowedLine(im_with_keypoints, center_point, vector_end_point, COLOR_GREEN)
-            if np.linalg.norm(super) > MOVEMENT_THRESHOLD:
+            if np.linalg.norm(super) > GENERAL_MOVEMENT_THRESHOLD:
                 cv2.arrowedLine(im_with_keypoints, center_point, super_end_point, COLOR_ORANGE, 2)
 
             last_center_point = center_point
             res = angle_between(v1, super)
 
 
-            if not np.isnan(res) and (np.linalg.norm(v1) > MOVEMENT_THRESHOLD and np.linalg.norm(super) > MOVEMENT_THRESHOLD):
-                #print "angle_between(v1,super) {}".format(angle_between(v1,super))
+            if not np.isnan(res) and (np.linalg.norm(v1) > SHORT_MOVEMENT_THRESHOLD and np.linalg.norm(super) > GENERAL_MOVEMENT_THRESHOLD):
                 currentMouse.movement_sum += np.linalg.norm(v1)
-                if angle_between(v1,super) < 0:
-                    print angle_between(v1,super)
-                currentMouse.angle_sum += angle_between(v1,super)
-                currentMouse.avg_angle = currentMouse.angle_sum/currentMouse.movement_sum
-                currentMouse.data['x'].append(currentMouse.movement_sum)
-                currentMouse.data['y'].append(currentMouse.avg_angle * 1000)
 
-        currentTime = cap.get(cv2.CAP_PROP_POS_MSEC)
+                assert angle_between(v1,super) >= 0
+
+                #currentMouse.angle_sum += angle_between(v1,super)
+                #currentMouse.avg_angle = currentMouse.angle_sum/currentMouse.movement_sum
+                currentMouse.data['x'].append(currentTime/(1000*60))
+                currentMouse.data['y'].append(angle_between(v1, super))
+
+                #currentMouse.data['y'].append(currentMouse.avg_angle * 1000)
+
+
         cv2.putText(im_with_keypoints, "avg angle {}".format(currentMouse.avg_angle*1000), (0, 70), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "movement sum {}".format(currentMouse.movement_sum), (0, 100), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "Time " + str(currentTime), (0, 20), 0, .5, COLOR_RED)
@@ -182,10 +223,12 @@ while cap.isOpened():
         if (currentTime // (LASER_INTEVAL_MINUTES * 60 * 1000)) % 2 == 1:
             if currentMouse == mouse_data_normal :
                 print "Context switch changing from mouse_data_normal to mouse_data_laser "
+                remain_context_switch-=1
             currentMouse = mouse_data_laser
         else:
             if currentMouse == mouse_data_laser:
                 print "Context switch changing from to mouse_data_laser mouse_data_normal"
+                remain_context_switch -= 1
             currentMouse = mouse_data_normal
 
 
@@ -198,6 +241,11 @@ while cap.isOpened():
                 break
             elif k == 112:
                 paint_graph()
+            elif k == 2555904:
+                cap.set(cv2.CAP_PROP_POS_MSEC,currentTime + 30000)
+            elif k == 2424832:
+                cap.set(cv2.CAP_PROP_POS_MSEC, currentTime - 30000)
+
 
     else:
         break
