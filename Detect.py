@@ -251,7 +251,7 @@ while cap.isOpened() and remain_context_switch > 0:
         break
 
 print "file name= {}".format(filePath)
-print "Finish total distance={} avg angle={} endTime={}".format(currentMouse.movement_sum, currentMouse.avg_angle * 1000, currentMouse.currentTime)
+print "Finish total distance={} avg angle={}".format(currentMouse.movement_sum, currentMouse.avg_angle * 1000)
 
 
 paint_graph()
