@@ -7,9 +7,9 @@ import math
 GENERAL_MOVEMENT_HISTORY = 5
 LASER_INTEVAL_MINUTES = 3
 NUM_OF_CYCLES = 3
-SHORT_MOVEMENT_THRESHOLD = 2
-GENERAL_MOVEMENT_THRESHOLD = 2
-ARROWS_SIZE_FACTOR = 5 #For drawing purposes
+VECTOR_SIZE_NORMALIZE = 5 # "Normalize" vectors size, avoid working with small numbers that can't later be divided for average.
+SHORT_MOVEMENT_THRESHOLD = VECTOR_SIZE_NORMALIZE *2
+GENERAL_MOVEMENT_THRESHOLD = VECTOR_SIZE_NORMALIZE *2
 
 COLOR_RED = (0, 0, 255)
 COLOR_ORANGE = (51, 153, 255)
@@ -183,16 +183,14 @@ while cap.isOpened() and remain_context_switch > 0:
 
             # find vector direction
             v1 = np.subtract(center_point, last_center_point)
-
-            # "Normalize" vector (mostly for drawing purposes )
-            #v1 = tuple(v1*5)
+            v1 = tuple(v1 * VECTOR_SIZE_NORMALIZE)
 
             currentMouse.update_history(v1)
             super = currentMouse.get_super_avg()
 
-            super_end_point = tuple(np.add(center_point, super*ARROWS_SIZE_FACTOR))
+            super_end_point = tuple(np.add(center_point, super))
 
-            vector_end_point = tuple(np.add(center_point, tuple(v1*ARROWS_SIZE_FACTOR)))
+            vector_end_point = tuple(np.add(center_point, tuple(v1)))
 
             if np.linalg.norm(v1) > SHORT_MOVEMENT_THRESHOLD:
                 cv2.arrowedLine(im_with_keypoints, center_point, vector_end_point, COLOR_GREEN)
