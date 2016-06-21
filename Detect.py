@@ -3,6 +3,7 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 import math
+from tester import medfilt1
 
 GENERAL_MOVEMENT_HISTORY = 5
 LASER_INTEVAL_MINUTES = 3
@@ -14,7 +15,6 @@ GENERAL_MOVEMENT_THRESHOLD = VECTOR_SIZE_NORMALIZE *2
 COLOR_RED = (0, 0, 255)
 COLOR_ORANGE = (51, 153, 255)
 COLOR_GREEN = (0, 255, 0)
-
 
 
 #cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg')
@@ -85,7 +85,6 @@ def angle_between(v1, v2):
 class MouseData:
     def __init__(self,history_size):
         self.history = []
-
         self.movement_sum = 0
         self.angle_sum = 0
         self.avg_angle = 0
@@ -119,6 +118,7 @@ currentMouse = mouse_data_normal
 remain_context_switch = NUM_OF_CYCLES * 2
 
 def paint_graph():
+
     fig = plt.figure("Movement graph")
     fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
     plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
@@ -131,8 +131,15 @@ def paint_graph():
     fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
 
     plt.subplot(221)
-    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'],'b', mouse_data_laser.data['x'],
-             mouse_data_laser.data['y'],'g')
+    mean = 100
+
+    plt.title('Meadian {}'.format(mean))
+    yy = medfilt1(mouse_data_normal.data['y'],mean)
+    if len(mouse_data_laser.data['y']) < mean:
+        plt.plot(mouse_data_normal.data['x'], tuple(yy), 'b')
+    else:
+        yy1 = medfilt1(mouse_data_laser.data['y'], mean)
+        plt.plot(mouse_data_normal.data['x'], tuple(yy), 'b', mouse_data_laser.data['x'], tuple(yy1), 'g')
     plt.ylabel("Degree")
     plt.xlabel("Time")
 
@@ -151,8 +158,12 @@ def paint_graph():
     plt.ylabel("Occurences")
 
     plt.subplot(224)
-    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['vSize'], mouse_data_laser.data['x'],
-             mouse_data_laser.data['vSize'])
+    vSize = medfilt1(mouse_data_normal.data['vSize'],mean)
+    if len(mouse_data_laser.data['y']) < mean:
+        plt.plot(mouse_data_normal.data['x'], tuple(vSize), 'b')
+    else:
+        vSize1 = medfilt1(mouse_data_laser.data['vSize'], mean)
+        plt.plot(mouse_data_normal.data['x'],vSize, mouse_data_laser.data['x'], vSize1)
     plt.ylabel("speed")
     plt.xlabel("Time")
     #if mouse_data_laser.data['y'] != []:
@@ -217,7 +228,7 @@ while cap.isOpened() and remain_context_switch > 0:
                 #currentMouse.data['y'].append(currentMouse.avg_angle * 1000)
 
 
-        cv2.putText(im_with_keypoints, "avg angle {}".format(currentMouse.avg_angle*1000), (0, 70), 0, .5, COLOR_RED)
+        #cv2.putText(im_with_keypoints, "speed {}".format(np.linalg.norm(v1)), (0, 70), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "movement sum {}".format(currentMouse.movement_sum), (0, 100), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "Time " + str(currentTime), (0, 20), 0, .5, COLOR_RED)
 
