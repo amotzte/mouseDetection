@@ -90,21 +90,18 @@ class MouseData:
         self.angle_sum = 0
         self.avg_angle = 0
         self.data = {'x': [],
-                     'y': []}
+                     'y': [],
+                     'vSize': []}
 
         for i in range(history_size):
-            self.history.append((0, 0))
+            self.history.append(np.array([0, 0]))
 
     def update_history(self,point):
         self.history.pop()
         self.history.insert(0, point)
 
     def get_super_avg(self):
-     super_post_arr = (0, 0)
-     for v in self.history:
-         super_post_arr = np.add(super_post_arr, v)
-     return super_post_arr/len(self.history)
-
+        return np.mean(self.history, axis=0, dtype=np.int32)
 
 
 print params
@@ -152,6 +149,12 @@ def paint_graph():
     plt.hist((mouse_data_normal.data['y'], mouse_data_laser.data['y'] if mouse_data_laser.data['y'] != [] else [0]),bins=3, normed=False)
     plt.xlabel("Degree")
     plt.ylabel("Occurences")
+
+    plt.subplot(224)
+    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['vSize'], mouse_data_laser.data['x'],
+             mouse_data_laser.data['vSize'])
+    plt.ylabel("speed")
+    plt.xlabel("Time")
     #if mouse_data_laser.data['y'] != []:
     #    plt.hist(mouse_data_laser.data['y'],color='green')
 
@@ -161,7 +164,6 @@ def paint_graph():
 #print angle_between((math.cos(math.radians(45)), -math.sin(math.radians(45))),(1,0))
 
 #exit(1)
-
 
 while cap.isOpened() and remain_context_switch > 0:
     ret, frame = cap.read()
@@ -210,6 +212,7 @@ while cap.isOpened() and remain_context_switch > 0:
                 #currentMouse.avg_angle = currentMouse.angle_sum/currentMouse.movement_sum
                 currentMouse.data['x'].append(currentTime/(1000*60))
                 currentMouse.data['y'].append(angle_between(v1, super))
+                currentMouse.data['vSize'].append(np.linalg.norm(super))
 
                 #currentMouse.data['y'].append(currentMouse.avg_angle * 1000)
 
