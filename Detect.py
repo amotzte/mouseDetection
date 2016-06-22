@@ -1,9 +1,10 @@
-import numpy as np
-import cv2
 import os
+
+import cv2
 import matplotlib.pyplot as plt
-import math
-from tester import medfilt1
+import numpy as np
+
+from CalcUtils import FpsCounter, angle_between,medfilt1
 
 GENERAL_MOVEMENT_HISTORY = 5
 LASER_INTEVAL_MINUTES = 3
@@ -62,26 +63,6 @@ thresholdStep = {float} 10.0
 """
 
 
-def unit_vector(vector):
-    """ Returns the unit vector of the vector.
-    @type vector: tuple
-
-    """
-    return vector / np.linalg.norm(vector)
-
-
-def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'::
-
-    @type v1: tuple
-    @type v2: tuple
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    rad = np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
-    return math.degrees(rad)
-
-
 class MouseData:
     def __init__(self,history_size):
         self.history = []
@@ -117,6 +98,8 @@ mouse_data_laser = MouseData(GENERAL_MOVEMENT_HISTORY)
 currentMouse = mouse_data_normal
 remain_context_switch = NUM_OF_CYCLES * 2
 
+
+
 def paint_graph():
 
     fig = plt.figure("Movement graph")
@@ -133,7 +116,7 @@ def paint_graph():
     plt.subplot(221)
     mean = 100
 
-    plt.title('Meadian {}'.format(mean))
+    plt.title('Meadian angles {}'.format(mean))
     yy = medfilt1(mouse_data_normal.data['y'],mean)
     if len(mouse_data_laser.data['y']) < mean:
         plt.plot(mouse_data_normal.data['x'], tuple(yy), 'b')
@@ -145,37 +128,40 @@ def paint_graph():
 
 
     plt.subplot(222)
-    plt.title('Normalize histogram')
-    plt.xlabel("Degree")
-    plt.ylabel("Occurences")
-
-    plt.hist((mouse_data_normal.data['y'],mouse_data_laser.data['y'] if mouse_data_laser.data['y'] != [] else [0]),bins=3,normed=True)
+    plt.title('Angels')
+    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
+             mouse_data_laser.data['y'])
+    plt.ylabel("Degree")
+    plt.xlabel("Time")
 
     plt.subplot(223)
-    plt.title('Histogram')
-    plt.hist((mouse_data_normal.data['y'], mouse_data_laser.data['y'] if mouse_data_laser.data['y'] != [] else [0]),bins=3, normed=False)
-    plt.xlabel("Degree")
-    plt.ylabel("Occurences")
-
-    plt.subplot(224)
-    vSize = medfilt1(mouse_data_normal.data['vSize'],mean)
+    plt.title("Meadian speed".format(mean))
+    vSize = medfilt1(mouse_data_normal.data['vSize'], mean)
     if len(mouse_data_laser.data['y']) < mean:
         plt.plot(mouse_data_normal.data['x'], tuple(vSize), 'b')
     else:
         vSize1 = medfilt1(mouse_data_laser.data['vSize'], mean)
-        plt.plot(mouse_data_normal.data['x'],vSize, mouse_data_laser.data['x'], vSize1)
+        plt.plot(mouse_data_normal.data['x'], vSize, mouse_data_laser.data['x'], vSize1)
     plt.ylabel("speed")
     plt.xlabel("Time")
+
+
+    plt.subplot(224)
+    plt.title('Speed')
+    plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['vSize'], mouse_data_laser.data['x'],
+             mouse_data_laser.data['vSize'])
+    plt.ylabel("speed")
+    plt.xlabel("Time")
+
+
     #if mouse_data_laser.data['y'] != []:
     #    plt.hist(mouse_data_laser.data['y'],color='green')
 
 
     plt.show()
-#print angle_between((math.cos(math.radians(45)), math.sin(math.radians(45))),(1,0))
-#print angle_between((math.cos(math.radians(45)), -math.sin(math.radians(45))),(1,0))
 
-#exit(1)
 
+fpsCounter = FpsCounter()
 while cap.isOpened() and remain_context_switch > 0:
     ret, frame = cap.read()
 
@@ -217,7 +203,7 @@ while cap.isOpened() and remain_context_switch > 0:
             if not np.isnan(res) and (np.linalg.norm(v1) > SHORT_MOVEMENT_THRESHOLD and np.linalg.norm(super) > GENERAL_MOVEMENT_THRESHOLD):
                 currentMouse.movement_sum += np.linalg.norm(v1)
 
-                assert angle_between(v1,super) >= 0
+                assert angle_between(v1, super) >= 0
 
                 #currentMouse.angle_sum += angle_between(v1,super)
                 #currentMouse.avg_angle = currentMouse.angle_sum/currentMouse.movement_sum
@@ -227,8 +213,9 @@ while cap.isOpened() and remain_context_switch > 0:
 
                 #currentMouse.data['y'].append(currentMouse.avg_angle * 1000)
 
+        fpsCounter.frame()
 
-        #cv2.putText(im_with_keypoints, "speed {}".format(np.linalg.norm(v1)), (0, 70), 0, .5, COLOR_RED)
+        cv2.putText(im_with_keypoints, "FPS {}".format(fpsCounter.current_fps), (0, 70), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "movement sum {}".format(currentMouse.movement_sum), (0, 100), 0, .5, COLOR_RED)
         cv2.putText(im_with_keypoints, "Time " + str(currentTime), (0, 20), 0, .5, COLOR_RED)
 
@@ -252,7 +239,10 @@ while cap.isOpened() and remain_context_switch > 0:
             if k == 113:
                 break
             elif k == 112:
-                paint_graph()
+                try:
+                    paint_graph()
+                except Exception, e:
+                    print e
             elif k == 2555904:
                 cap.set(cv2.CAP_PROP_POS_MSEC,currentTime + 30000)
             elif k == 2424832:
