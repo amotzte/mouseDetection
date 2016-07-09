@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from CalcUtils import FpsCounter, angle_between,medfilt1
-
+SPEED = 30 # 1 mean fastest, 30 is about normal
 GENERAL_MOVEMENT_HISTORY = 5
 LASER_INTEVAL_MINUTES = 3
 NUM_OF_CYCLES = 3
@@ -17,13 +17,16 @@ COLOR_RED = (0, 0, 255)
 COLOR_ORANGE = (51, 153, 255)
 COLOR_GREEN = (0, 255, 0)
 
+from Tkinter import Tk
+from tkFileDialog import askopenfilename
 
-#cap = cv2.VideoCapture('C:\\Users\\amotz\\PycharmProjects\\openCv\\4dms_cocaine_1st_laser.mpg')
-#filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\vlc-record-2016-05-29-11h07m23s-3DMS NO COCAINE.mpg-.mp4"
-filePath = "C:\\Users\\amotz\\PycharmProjects\\openCv\\4DMS_no_cocaine.mpg"
-cap = cv2.VideoCapture(filePath)
+Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+filename = askopenfilename() # show an "Open" dialog box and return the path to the selected file
+print(filename)
 
-print cap.isOpened()
+cap = cv2.VideoCapture(filename)
+
+assert cap.isOpened()
 
 # Detection parameters
 params = cv2.SimpleBlobDetector_Params()
@@ -233,7 +236,7 @@ while cap.isOpened() and remain_context_switch > 0:
 
         cv2.imshow("Keypoints", im_with_keypoints)
 
-        k = cv2.waitKey(1)
+        k = cv2.waitKey(SPEED)
         if k != -1 :
             print k
             if k == 113:
