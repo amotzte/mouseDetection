@@ -117,7 +117,7 @@ def paint_graph():
     fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
 
     plt.subplot(221)
-    mean = 100
+    mean = 100 if len(mouse_data_laser.data['y']) > 100 and len(mouse_data_normal.data['y']) > 100 else 3
 
     plt.title('Meadian angles {}'.format(mean))
     yy = medfilt1(mouse_data_normal.data['y'],mean)
