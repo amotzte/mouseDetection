@@ -106,7 +106,7 @@ remain_context_switch = NUM_OF_CYCLES * 2
 def paint_graph():
 
     fig = plt.figure("Movement graph")
-    fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
+    fig.suptitle("{}, {} Cycles ".format(os.path.basename(filename), NUM_OF_CYCLES), fontsize=12)
     plt.plot(mouse_data_normal.data['x'], mouse_data_normal.data['y'], mouse_data_laser.data['x'],
              mouse_data_laser.data['y'])
     plt.ylabel("Degree")
@@ -114,7 +114,7 @@ def paint_graph():
 
 
     fig = plt.figure("All graphs")
-    fig.suptitle("{}, {} Cycles ".format(os.path.basename(filePath), NUM_OF_CYCLES), fontsize=12)
+    fig.suptitle("{}, {} Cycles ".format(os.path.basename(filename), NUM_OF_CYCLES), fontsize=12)
 
     plt.subplot(221)
     mean = 100 if len(mouse_data_laser.data['y']) > 100 and len(mouse_data_normal.data['y']) > 100 else 3
@@ -255,7 +255,7 @@ while cap.isOpened() and remain_context_switch > 0:
     else:
         break
 
-print "file name= {}".format(filePath)
+print "file name= {}".format(filename)
 print "Finish total distance={} avg angle={}".format(currentMouse.movement_sum, currentMouse.avg_angle * 1000)
 
 
